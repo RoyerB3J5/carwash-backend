@@ -1,11 +1,16 @@
-import express from 'express';
-import {getUsersDate, getUserUnfinished, createUser, updateUser } from '../controllers/users.controller.js'
+import express from "express";
+import {
+  getUsersDate,
+  getUserUnfinished,
+  createUser,
+  updateUser,
+} from "../controllers/users.controller.js";
 
-const router = express.Router()
+const router = express.Router();
 
-router.post('/date',getUsersDate)
-router.get('/unfinished',getUserUnfinished)
-router.post('/',createUser)
-router.patch('/:id', updateUser)
+router.get("/date", getUsersDate);
+router.get("/unfinished", getUserUnfinished);
+router.post("/", createUser);
+router.patch("/:id", updateUser);
 
-export {router}
+export { router };
