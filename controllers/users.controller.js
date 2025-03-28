@@ -2,16 +2,16 @@ import { User } from "../models/users.model.js";
 
 const getUsersDate = async (req, res) => {
   try {
-    const { start, end } = req.body;
+    const { start, end } = req.params;
 
     const users = await User.find({
       createdAt: {
-        $gte: new Date(start),
-        $lt: new Date(end),
+        $gte: start,
+        $lt: end,
       },
     });
     return res.status(200).json({
-      length: users.length,
+      count: users.length,
       data: users,
     });
   } catch (error) {

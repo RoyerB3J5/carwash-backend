@@ -670,9 +670,15 @@ async function getComparativeWeekly(req, res) {
   }
 }
 
+async function getStatistcData(req, res) {}
+
+async function getDataGraphic(req, res) {}
+
 export {
   getIncomeData,
   getComparativeYearly,
   getComparativeMonthly,
   getComparativeWeekly,
+  getStatistcData,
+  getDataGraphic,
 };

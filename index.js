@@ -41,12 +41,12 @@ const authMiddleware = async (req, res, next) => {
     return res.status(401).json({ message: "Unauthorized" });
   }
 };
-app.use("/users", authMiddleware, usersRoute);
+//app.use("/users", authMiddleware, usersRoute);
 app.use("/services", authMiddleware, servicesRoute);
 app.use("/type-expenses", authMiddleware, typeExpensesRoute);
 //app.use('/expenses', authMiddleware, expensesRoute)
 
-//app.use('/users',usersRoute)
+app.use("/users", usersRoute);
 //app.use('/services',servicesRoute)
 //app.use('/type-expenses', typeExpensesRoute)
 app.use("/expenses", expensesRoute);

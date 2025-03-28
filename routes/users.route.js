@@ -8,7 +8,7 @@ import {
 
 const router = express.Router();
 
-router.get("/date", getUsersDate);
+router.get("/date/:start/:end", getUsersDate);
 router.get("/unfinished", getUserUnfinished);
 router.post("/", createUser);
 router.patch("/:id", updateUser);
