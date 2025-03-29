@@ -35,6 +35,10 @@ const userSchema = mongoose.Schema(
       required: true,
       default: false,
     },
+    idMyUser: {
+      type: String,
+      required: true,
+    },
   },
   { timestamps: true, versionKey: false },
 );

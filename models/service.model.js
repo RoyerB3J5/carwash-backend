@@ -18,6 +18,10 @@ const servicesSchema = mongoose.Schema(
         },
       },
     ],
+    idMyUser: {
+      type: String,
+      required: true,
+    },
   },
   {
     versionKey: false,

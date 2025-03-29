@@ -1,4 +1,4 @@
-import {TypeExpenses} from "../models/TypeExpenses.js";
+import { TypeExpenses } from "../models/typeExpenses.model.js";
 
 async function getTypeExpenses(req, res) {
   try {
@@ -30,31 +30,23 @@ async function deleteTypeItem(req, res) {
 }
 async function upsertTypes(req, res) {
   try {
-const  idMyUser  = req.user.uid
-  const dataUpsert = Array.isArray(req.body) ? req.body : JSON.parse(req.body)
+    const idMyUser = req.user.uid;
+    const newTypeExpenses = req.body;
 
-  if (!dataUpsert.every(item => typeof item === 'object' && ('_id' in item || name in item))) {
-  return res.status(400).json({error: "Formato de datos invalidos"})
-}
-  const bulkOperations = dataUpsert.map(item => {
-    const {_id, ...rest} =item
-    if (_id){
-      return {
-        updatedOne: {
-          filter: {_id, idMyUser},
-          update: {$set : { ...rest, idMyUser }},
-          upsert: false
-        }
-        },
-    },
-    return {
-      insertOne: {
-        document: {...rest, idMyUser}
-      }
+    if (!Array.isArray(newTypeExpenses)) {
+      return res
+        .status(400)
+        .json({ message: "Se esperaba un array de objetos" });
     }
-      }), 
-    const result = await TypeExpenses.bulkWrite(bulkOperations)
-    return res.status(200).json(result)
+    const typesWithUsers = newTypeExpenses.map((type) => ({
+      ...type,
+      idMyUser,
+    }));
+
+    const result = await TypeExpenses.insertMany(typesWithUsers);
+    return res
+      .status(200)
+      .json({ message: "Los gastos han sido actualizados correctamente" });
   } catch (error) {
     console.error(error.message);
     return res.status(500).send({ message: error.message });

@@ -1,4 +1,4 @@
-import Expenses from "../models/expenses.model.js";
+import { Expenses } from "../models/expenses.model.js";
 async function deleteExpense(req, res) {
   try {
     const idMyUser = req.user.uid;
@@ -50,16 +50,40 @@ async function getExpensesByMonth(req, res) {
         1,
         5,
         0,
-        0,
-      ),
+        0
+      )
     );
-    const expenses = await Expenses.find({
-      idMyUser: idMyUser,
-      createdAt: {
-        $gte: startDate,
-        $lt: endDate,
+    const expenses = await Expenses.aggregate([
+      {
+        $match: {
+          idMyUser: idMyUser,
+          createdAt: {
+            $gte: startDate,
+            $lt: endDate,
+          },
+        },
       },
-    }).sort({ createdAt: 1 });
+      {
+        $addFields: {
+          day: {
+            $dateToString: {
+              format: "%d",
+              date: "$createdAt",
+              timezone: "America/Lima",
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          type: 1,
+          price: 1,
+          day: 1,
+        },
+      },
+    ]);
     return res.status(200).json(expenses);
   } catch (error) {
     console.error(error);

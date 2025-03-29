@@ -44,12 +44,12 @@ const authMiddleware = async (req, res, next) => {
 //app.use("/users", authMiddleware, usersRoute);
 app.use("/services", authMiddleware, servicesRoute);
 app.use("/type-expenses", authMiddleware, typeExpensesRoute);
-//app.use('/expenses', authMiddleware, expensesRoute)
+app.use('/expenses', authMiddleware, expensesRoute)
 
 app.use("/users", usersRoute);
 //app.use('/services',servicesRoute)
 //app.use('/type-expenses', typeExpensesRoute)
-app.use("/expenses", expensesRoute);
+//app.use("/expenses", expensesRoute);
 app.use("/report", reportRoute);
 
 mongoose
