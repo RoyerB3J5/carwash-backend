@@ -46,7 +46,7 @@ function getDaysArray(year, month) {
 
 async function getComparativeYearly(req, res) {
   try {
-    const idMyUser = req.user.uid
+    //const idMyUser = req.user.uid
     const processAnnualAggregation = (aggregationResults) => {
       const result = { current: {}, previous: {} };
 
@@ -154,7 +154,7 @@ async function getComparativeYearly(req, res) {
 
 async function getComparativeMonthly(req, res) {
   try {
-    const idMyUser = req.user.uid
+    //const idMyUser = req.user.uid
     const processMonthlyAggregation = (aggregationResults) => {
       const result = { current: {}, previous: {} };
       aggregationResults.forEach((item) => {
@@ -333,7 +333,7 @@ async function getComparativeWeekly(req, res) {
         val2: result.previous[day.number] || 0,
       }));
     };
-    const idMyUser = req.user.uid;
+    //const idMyUser = req.user.uid;
     const now = moment().tz("America/Lima");
     const currentWeekStart = now.clone().startOf("isoWeek");
     const currentWeekEnd = currentWeekStart.clone().endOf("isoWeek");
@@ -428,7 +428,7 @@ async function getComparativeWeekly(req, res) {
 
 async function getDataGraphic(req, res) {
   try {
-    const idMyUser = req.user.uid
+    //const idMyUser = req.user.uid
     const { year, month } = req.query;
     const yearNumber = parseInt(year);
     const monthNumber = parseInt(month);
@@ -463,11 +463,11 @@ async function getDataGraphic(req, res) {
           {
             $project: {
               _id: 0,
-              day: { $toInt: "$_id" },
-              amount: "$totalAmount",
+              label: { $toInt: "$_id" },
+              price: "$totalAmount",
             },
           },
-          { $sort: { day: 1 } },
+          { $sort: { label: 1 } },
         ]),
         Expenses.aggregate([
           {
@@ -497,30 +497,30 @@ async function getDataGraphic(req, res) {
           {
             $project: {
               _id: 0,
-              day: { $toInt: "$_id" },
-              amount: "$totalAmount",
+              label: { $toInt: "$_id" },
+              price: "$totalAmount",
             },
           },
-          { $sort: { day: 1 } },
+          { $sort: { label: 1 } },
         ]),
       ]);
 
       const userMap = new Map(
-        userAggrregation.map((item) => [item.day, item.amount])
+        userAggrregation.map((item) => [item.label, item.price])
       );
       const expensesMap = new Map(
-        expensesAggregation.map((item) => [item.day, item.amount])
+        expensesAggregation.map((item) => [item.label, item.price])
       );
 
       const dayArray = getDaysArray(yearNumber, monthNumber);
 
       const usersResult = dayArray.map((day) => ({
-        day,
-        amount: userMap.get(day) || 0,
+        label: day,
+        price: userMap.get(day) || 0,
       }));
       const expensesResult = dayArray.map((day) => ({
-        day,
-        amount: expensesMap.get(day) || 0,
+        label: day,
+        price: expensesMap.get(day) || 0,
       }));
 
       return res.status(200).json({
@@ -583,13 +583,13 @@ async function getDataGraphic(req, res) {
 
             if (
               targetYear == currentYear &&
-              currentMonthNumber > now.month() + 1
+              currentMonthNumber > now.month() 
             )
               return null;
 
             const found = data.find((item) => item._id === monthKey);
             return {
-              mes: m,
+              label: m,
               price: found ? found.total : 0,
             };
           })
@@ -608,7 +608,7 @@ async function getDataGraphic(req, res) {
 
 async function getStatistcData(req, res) {
   try {
-    const idMyUser = req.user.uid
+    //const idMyUser = req.user.uid
     const now = moment.tz("America/Lima");
 
     const startOfMonth = now.clone().startOf("month");
