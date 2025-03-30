@@ -12,5 +12,5 @@ router.get("/comparative-year", getComparativeYearly);
 router.get("/comparative-month", getComparativeMonthly);
 router.get("/comparative-week", getComparativeWeekly);
 router.get("/static", getStatistcData);
-router.get("/:year/:month?", getDataGraphic);
+router.get("/data", getDataGraphic);
 export { router };
