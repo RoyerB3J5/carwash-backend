@@ -1,7 +1,6 @@
 import express from "express";
 import mongoose from "mongoose";
 import admin from "firebase-admin";
-import { PORT, MONGO_URL, GOOGLE_APPLICATION_CREDENTIALS } from "./config.js";
 import cors from "cors";
 import { router as usersRoute } from "./routes/users.route.js";
 import { router as servicesRoute } from "./routes/service.route.js";
@@ -11,14 +10,14 @@ import { router as reportRoute } from "./routes/reports.route.js";
 import fs from "fs/promises";
 
 const serviceAccount = JSON.parse(
-  await fs.readFile(GOOGLE_APPLICATION_CREDENTIALS, "utf8")
+  await fs.readFile(process.env.GOOGLE_APPLICATION_CREDENTIALS, "utf8")
 );
 
 const app = express();
 app.use(express.json());
 app.use(
   cors({
-    origin: `http://localhost:5173`,
+    origin: process.env.REACT_URL,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
@@ -53,11 +52,11 @@ app.use("/expenses", authMiddleware, expensesRoute);
 app.use("/report", reportRoute);
 
 mongoose
-  .connect(MONGO_URL)
+  .connect(process.env.MONGO_URL)
   .then(() => {
     console.log("App connected to database");
-    app.listen(PORT, () => {
-      console.log(`App is running on port ${PORT}`);
+    app.listen(process.env.PORT, () => {
+      console.log(`App is running on port ${process.env.PORT}`);
     });
   })
   .catch((error) => {

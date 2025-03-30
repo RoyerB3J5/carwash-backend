@@ -46,6 +46,7 @@ function getDaysArray(year, month) {
 
 async function getComparativeYearly(req, res) {
   try {
+    const idMyUser = req.user.uid
     const processAnnualAggregation = (aggregationResults) => {
       const result = { current: {}, previous: {} };
 
@@ -78,6 +79,7 @@ async function getComparativeYearly(req, res) {
         {
           $match: {
             createdAt: { $gte: matchStart, $lte: matchEnd },
+            //idMyUser: idMyUser,
           },
         },
         {
@@ -110,6 +112,7 @@ async function getComparativeYearly(req, res) {
         {
           $match: {
             createdAt: { $gte: matchStart, $lte: matchEnd },
+            //idMyUser : idMyUser
           },
         },
         {
@@ -151,6 +154,7 @@ async function getComparativeYearly(req, res) {
 
 async function getComparativeMonthly(req, res) {
   try {
+    const idMyUser = req.user.uid
     const processMonthlyAggregation = (aggregationResults) => {
       const result = { current: {}, previous: {} };
       aggregationResults.forEach((item) => {
@@ -189,6 +193,7 @@ async function getComparativeMonthly(req, res) {
                 createdAt: { $gte: previousMatchStart, $lte: previousMatchEnd },
               },
             ],
+            //idMyUser: idMyUser,
           },
         },
         {
@@ -243,6 +248,7 @@ async function getComparativeMonthly(req, res) {
                 createdAt: { $gte: previousMatchStart, $lte: previousMatchEnd },
               },
             ],
+            //idMyUser: idMyUser
           },
         },
         {
@@ -302,6 +308,7 @@ async function getComparativeMonthly(req, res) {
 
 async function getComparativeWeekly(req, res) {
   try {
+
     const processAggregation = (aggregationResults) => {
       const result = { current: {}, previous: {} };
       aggregationResults.forEach((item) => {
@@ -421,6 +428,7 @@ async function getComparativeWeekly(req, res) {
 
 async function getDataGraphic(req, res) {
   try {
+    const idMyUser = req.user.uid
     const { year, month } = req.query;
     const yearNumber = parseInt(year);
     const monthNumber = parseInt(month);
@@ -431,6 +439,7 @@ async function getDataGraphic(req, res) {
           {
             $match: {
               createdAt: { $gte: startUTC, $lt: endUTC },
+              //idMyUser : idMyUser
             },
           },
           {
@@ -464,6 +473,7 @@ async function getDataGraphic(req, res) {
           {
             $match: {
               createdAt: { $gte: startUTC, $lt: endUTC },
+              //idMyUser: idMyUser
             },
           },
           {
@@ -536,6 +546,7 @@ async function getDataGraphic(req, res) {
           $gte: startDate.utc().toDate(),
           $lte: endDate.utc().toDate(),
         },
+        //idMyUser: idMyUser
       };
       const basePipeline = [
         { $match: matchFilter },
@@ -597,6 +608,7 @@ async function getDataGraphic(req, res) {
 
 async function getStatistcData(req, res) {
   try {
+    const idMyUser = req.user.uid
     const now = moment.tz("America/Lima");
 
     const startOfMonth = now.clone().startOf("month");
@@ -612,6 +624,7 @@ async function getStatistcData(req, res) {
             $gte: utcStart,
             $lte: utcEnd,
           },
+          //idMyUser: idMyUser
         },
       },
       {
