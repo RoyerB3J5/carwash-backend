@@ -43,395 +43,435 @@ function getDaysArray(year, month) {
 
   return Array.from({ length: daysInMonth }, (_, i) => i + 1);
 }
-
-async function getComparativeYearly(req, res) {
-  try {
-    //const idMyUser = req.user.uid
-    const processAnnualAggregation = (aggregationResults) => {
-      const result = { current: {}, previous: {} };
-
-      aggregationResults.forEach((item) => {
-        const yearType = item._id.year;
-        const month = item._id.month;
-        result[yearType][month] = item.totalAmount;
-      });
-      return Array.from({ length: 12 }, (_, i) => {
-        const monthNumber = (i + 1).toString().padStart(2, "0");
-        return {
-          label: months[i],
-          val1: result.current[monthNumber] || 0,
-          val2: result.previous[monthNumber] || 0,
-        };
-      });
+const calculateBalance = (incomesArr, expensesArr) => {
+  return incomesArr.map((income, index) => {
+    const expensesEntry = expensesArr[index];
+    return {
+      label: income.label,
+      val1: income.val1 - expensesEntry.val1,
+      val2: income.val2 - expensesEntry.val2,
     };
+  });
+};
+const calculateBalanceStaticts = (incomesArr, expensesArr) => {
+  return incomesArr.map((income, index) => {
+    const expensesEntry = expensesArr[index];
+    return {
+      label: income.label,
+      price: income.price - expensesEntry.price,
+    };
+  });
+};
 
-    const now = moment().tz("America/Lima");
-    const currentYearStart = now.clone().startOf("year");
-    const currentYearEnd = now.clone().endOf("year");
-    const previousYearStart = currentYearStart.clone().subtract(1, "year");
-    const previousYearEnd = previousYearStart.clone().endOf("year");
+const getComparativeYear = async (idMyUser ) => {
+  const processAnnualAggregation = (aggregationResults) => {
+    const result = { current: {}, previous: {} };
 
-    const matchStart = previousYearStart.toDate();
-    const matchEnd = currentYearEnd.toDate();
+    aggregationResults.forEach((item) => {
+      const yearType = item._id.year;
+      const month = item._id.month;
+      result[yearType][month] = item.totalAmount;
+    });
+    return Array.from({ length: 12 }, (_, i) => {
+      const monthNumber = (i + 1).toString().padStart(2, "0");
+      return {
+        label: months[i],
+        val1: result.current[monthNumber] || 0,
+        val2: result.previous[monthNumber] || 0,
+      };
+    });
+  };
 
-    const [usersAgg, expensesAgg] = await Promise.all([
-      User.aggregate([
-        {
-          $match: {
-            createdAt: { $gte: matchStart, $lte: matchEnd },
-            //idMyUser: idMyUser,
-          },
+  const now = moment().tz("America/Lima");
+  const currentYearStart = now.clone().startOf("year");
+  const currentYearEnd = now.clone().endOf("year");
+  const previousYearStart = currentYearStart.clone().subtract(1, "year");
+  const previousYearEnd = previousYearStart.clone().endOf("year");
+
+  const matchStart = previousYearStart.toDate();
+  const matchEnd = currentYearEnd.toDate();
+
+  const [usersAgg, expensesAgg] = await Promise.all([
+    User.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: matchStart, $lte: matchEnd },
+          idMyUser: idMyUser,
         },
-        {
-          $project: {
-            month: {
-              $dateToString: {
-                format: "%m",
-                date: "$createdAt",
-                timezone: "America/Lima",
+      },
+      {
+        $project: {
+          month: {
+            $dateToString: {
+              format: "%m",
+              date: "$createdAt",
+              timezone: "America/Lima",
+            },
+          },
+          year: {
+            $cond: [
+              { $gte: ["$createdAt", currentYearStart.utc().toDate()] },
+              "current",
+              "previous",
+            ],
+          },
+          price: 1,
+        },
+      },
+      {
+        $group: {
+          _id: { year: "$year", month: "$month" },
+          totalAmount: { $sum: "$price" },
+        },
+      },
+    ]),
+    Expenses.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: matchStart, $lte: matchEnd },
+          idMyUser : idMyUser
+        },
+      },
+      {
+        $project: {
+          month: {
+            $dateToString: {
+              format: "%m",
+              date: "$createdAt",
+              timezone: "America/Lima",
+            },
+          },
+          year: {
+            $cond: [
+              { $gte: ["$createdAt", currentYearStart.utc().toDate()] },
+              "current",
+              "previous",
+            ],
+          },
+          price: 1,
+        },
+      },
+      {
+        $group: {
+          _id: { year: "$year", month: "$month" },
+          totalAmount: { $sum: "$price" },
+        },
+      },
+    ]),
+  ]);
+  const incomes = processAnnualAggregation(usersAgg);
+  const expenses = processAnnualAggregation(expensesAgg);
+
+  const balance = calculateBalance(incomes, expenses);
+
+  return { incomes: incomes, expenses: expenses, balance: balance };
+};
+
+const getComparativeMonth = async (idMyUser) => {
+  const processMonthlyAggregation = (aggregationResults) => {
+    const result = { current: {}, previous: {} };
+
+    // Inicializa los objetos para cada semana
+    const weeks = ["S1", "S2", "S3", "S4", "S5"];
+    weeks.forEach((week) => {
+      result.current[week] = 0;
+      result.previous[week] = 0;
+    });
+
+    // Ahora es seguro asignar valores
+    aggregationResults.forEach((item) => {
+      if (item._id && item._id.month && item._id.weekOfMonth) {
+        const monthType = item._id.month;
+        const weekLabel = item._id.weekOfMonth.toString();
+
+        // Forma segura de asignar
+        if (result[monthType]) {
+          result[monthType]["S" + weekLabel] = item.totalAmount;
+        }
+      }
+    });
+
+    return weeks.map((week) => ({
+      label: week,
+      val1: result.current[week] || 0,
+      val2: result.previous[week] || 0,
+    }));
+  };
+
+  const now = moment().tz("America/Lima");
+  const currentMonthStart = now.clone().startOf("month");
+  const currentMonthEnd = now.clone().endOf("month");
+  const previousMonthStart = currentMonthStart.clone().subtract(1, "month");
+  const previousMonthEnd = currentMonthStart.clone().subtract(1, "days");
+
+  const previousMatchStart = previousMonthStart.utc().toDate();
+  const previousMatchEnd = previousMonthEnd.utc().toDate();
+  const currentMatchEnd = currentMonthEnd.utc().toDate();
+  const currentMatchStart = currentMonthStart.utc().toDate();
+
+  const [usersAgg, expensesAgg] = await Promise.all([
+    User.aggregate([
+      {
+        $match: {
+          $or: [
+            { createdAt: { $gte: currentMatchStart, $lte: currentMatchEnd } },
+            {
+              createdAt: { $gte: previousMatchStart, $lte: previousMatchEnd },
+            },
+          ],
+          idMyUser: idMyUser,
+        },
+      },
+      {
+        $project: {
+          weekOfMonth: {
+            $let: {
+              vars: {
+                dateInPeru: {
+                  $dateToParts: {
+                    date: "$createdAt",
+                    timezone: "America/Lima",
+                  },
+                },
+              },
+              in: {
+                $add: [
+                  {
+                    $floor: {
+                      $divide: [{ $subtract: ["$$dateInPeru.day", 1] }, 7],
+                    },
+                  },
+                  1,
+                ],
               },
             },
-            year: {
-              $cond: [
-                { $gte: ["$createdAt", currentYearStart.utc().toDate()] },
-                "current",
-                "previous",
-              ],
+          },
+          month: {
+            $cond: [
+              {
+                $gte: ["$createdAt", currentMatchStart],
+              },
+              "current",
+              "previous",
+            ],
+          },
+          price: 1,
+        },
+      },
+      {
+        $group: {
+          _id: { month: "$month", weekOfMonth: "$weekOfMonth" },
+          totalAmount: { $sum: "$price" },
+        },
+      },
+    ]),
+    Expenses.aggregate([
+      {
+        $match: {
+          $or: [
+            { createdAt: { $gte: currentMatchStart, $lte: currentMatchEnd } },
+            {
+              createdAt: { $gte: previousMatchStart, $lte: previousMatchEnd },
             },
-            price: 1,
-          },
+          ],
+          idMyUser: idMyUser
         },
-        {
-          $group: {
-            _id: { year: "$year", month: "$month" },
-            totalAmount: { $sum: "$price" },
-          },
-        },
-      ]),
-      Expenses.aggregate([
-        {
-          $match: {
-            createdAt: { $gte: matchStart, $lte: matchEnd },
-            //idMyUser : idMyUser
-          },
-        },
-        {
-          $project: {
-            month: {
-              $dateToString: {
-                format: "%m",
-                date: "$createdAt",
-                timezone: "America/Lima",
+      },
+      {
+        $project: {
+          weekOfMonth: {
+            $let: {
+              vars: {
+                dateInPeru: {
+                  $dateToParts: {
+                    date: "$createdAt",
+                    timezone: "America/Lima",
+                  },
+                },
+              },
+              in: {
+                $add: [
+                  {
+                    $floor: {
+                      $divide: [{ $subtract: ["$$dateInPeru.day", 1] }, 7],
+                    },
+                  },
+                  1,
+                ],
               },
             },
-            year: {
-              $cond: [
-                { $gte: ["$createdAt", currentYearStart.utc().toDate()] },
-                "current",
-                "previous",
-              ],
-            },
-            price: 1,
           },
-        },
-        {
-          $group: {
-            _id: { year: "$year", month: "$month" },
-            totalAmount: { $sum: "$price" },
+          month: {
+            $cond: [
+              {
+                $gte: ["$createdAt", currentMatchStart],
+              },
+              "current",
+              "previous",
+            ],
           },
+          price: 1,
         },
-      ]),
-    ]);
-    const incomes = processAnnualAggregation(usersAgg);
-    const expenses = processAnnualAggregation(expensesAgg);
+      },
+      {
+        $group: {
+          _id: { month: "$month", weekOfMonth: "$weekOfMonth" },
+          totalAmount: { $sum: "$price" },
+        },
+      },
+    ]),
+  ]);
 
-    return res.status(200).json({ incomes: incomes, expenses: expenses });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ mesaage: "Error en el servidor" });
-  }
+  const incomes = processMonthlyAggregation(usersAgg);
+  const expenses = processMonthlyAggregation(expensesAgg);
+  const balance = calculateBalance(incomes, expenses);
+  return { incomes: incomes, expenses: expenses, balance: balance };
+};
+const getComparativeWeek = async (idMyUser) => {
+  const processAggregation = (aggregationResults) => {
+    const result = { current: {}, previous: {} };
+    aggregationResults.forEach((item) => {
+      const weekType = item._id.week;
+      const dayNumber = item._id.dayOfWeek;
+      result[weekType][dayNumber] = item.totalAmount;
+    });
+
+    const days = [
+      { number: "1", label: "Lunes" },
+      { number: "2", label: "Martes" },
+      { number: "3", label: "Miercoles" },
+      { number: "4", label: "Jueves" },
+      { number: "5", label: "Viernes" },
+      { number: "6", label: "Sabado" },
+      { number: "7", label: "Domingo" },
+    ];
+
+    return days.map((day) => ({
+      label: day.label,
+      val1: result.current[day.number] || 0,
+      val2: result.previous[day.number] || 0,
+    }));
+  };
+  const idMyUser = req.user.uid;
+  const now = moment().tz("America/Lima");
+  const currentWeekStart = now.clone().startOf("isoWeek");
+  const currentWeekEnd = currentWeekStart.clone().endOf("isoWeek");
+
+  const previousWeekStart = currentWeekStart.clone().subtract(1, "week");
+  const previousWeekEnd = previousWeekStart.clone().endOf("isoWeek");
+
+  const matchStart = previousWeekStart.utc().toDate();
+  const matchEnd = currentWeekEnd.utc().toDate();
+
+  const [usersAgg, expensesAgg] = await Promise.all([
+    User.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: matchStart, $lte: matchEnd },
+          idMyUser: idMyUser
+        },
+      },
+      {
+        $project: {
+          dayOfWeek: {
+            $dateToString: {
+              format: "%u",
+              date: "$createdAt",
+              timezone: "America/Lima",
+            },
+          },
+          week: {
+            $cond: [
+              {
+                $gte: ["$createdAt", currentWeekStart.utc().toDate()],
+              },
+              "current",
+              "previous",
+            ],
+          },
+          price: 1,
+        },
+      },
+      {
+        $group: {
+          _id: { week: "$week", dayOfWeek: "$dayOfWeek" },
+          totalAmount: { $sum: "$price" },
+        },
+      },
+    ]),
+    Expenses.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: matchStart, $lte: matchEnd },
+          idMyUser: idMyUser
+        },
+      },
+      {
+        $project: {
+          dayOfWeek: {
+            $dateToString: {
+              format: "%u",
+              date: "$createdAt",
+              timezone: "America/Lima",
+            },
+          },
+          week: {
+            $cond: [
+              {
+                $gte: ["$createdAt", currentWeekStart.utc().toDate()],
+              },
+              "current",
+              "previous",
+            ],
+          },
+          price: 1,
+        },
+      },
+      {
+        $group: {
+          _id: { week: "$week", dayOfWeek: "$dayOfWeek" },
+          totalAmount: { $sum: "$price" },
+        },
+      },
+    ]),
+  ]);
+
+  const incomes = processAggregation(usersAgg);
+  const expenses = processAggregation(expensesAgg);
+  const balance = calculateBalance(incomes, expenses);
+  return { incomes: incomes, expenses: expenses, balance: balance };
 }
 
-async function getComparativeMonthly(req, res) {
+async function getComparativeData(req, res) {
   try {
-    //const idMyUser = req.user.uid
-    const processMonthlyAggregation = (aggregationResults) => {
-      const result = { current: {}, previous: {} };
-      aggregationResults.forEach((item) => {
-        const monthType = item._id.month;
-        const weekLabel = item._id.weekOfMonth;
-        result[monthType][weekLabel] = item.totalAmount;
-      });
-
-      const weeks = ["S1", "S2", "S3", "S4", "S5"];
-
-      return weeks.map((week) => ({
-        label: week,
-        val1: result.current[week] || 0,
-        val2: result.previous[week] || 0,
-      }));
-    };
-
-    const now = moment().tz("America/Lima");
-    const currentMonthStart = now.clone().startOf("month");
-    const currentMonthEnd = now.clone().endOf("month");
-    const previousMonthStart = currentMonthStart.clone().subtract(1, "month");
-    const previousMonthEnd = currentMonthStart.clone().subtract(1, "days");
-
-    const previousMatchStart = previousMonthStart.utc().toDate();
-    const previousMatchEnd = previousMonthEnd.utc().toDate();
-    const currentMatchEnd = currentMonthEnd.utc().toDate();
-    const currentMatchStart = currentMonthStart.utc().toDate();
-
-    const [usersAgg, expensesAgg] = await Promise.all([
-      User.aggregate([
-        {
-          $match: {
-            $or: [
-              { createdAt: { $gte: currentMatchStart, $lte: currentMatchEnd } },
-              {
-                createdAt: { $gte: previousMatchStart, $lte: previousMatchEnd },
-              },
-            ],
-            //idMyUser: idMyUser,
-          },
-        },
-        {
-          $project: {
-            weekOfMonth: {
-              $let: {
-                vars: {
-                  dateInPeru: {
-                    $dateToParts: {
-                      date: "$createdAt",
-                      timezone: "America/Lima",
-                    },
-                  },
-                },
-                in: {
-                  $add: [
-                    {
-                      $floor: {
-                        $divide: [{ $subtrac: ["$$dateInPeru.day", 1] }, 7],
-                      },
-                    },
-                    1,
-                  ],
-                },
-              },
-            },
-            month: {
-              $cond: [
-                {
-                  $gte: ["$createdAt", currentMatchStart],
-                },
-                "current",
-                "previous",
-              ],
-            },
-            price: 1,
-          },
-        },
-        {
-          $group: {
-            _id: { month: "$month", weekOfMonth: "$weekOfMonth" },
-            totalAmount: { $sum: "$price" },
-          },
-        },
-      ]),
-      Expenses.aggregate([
-        {
-          $match: {
-            $or: [
-              { createdAt: { $gte: currentMatchStart, $lte: currentMatchEnd } },
-              {
-                createdAt: { $gte: previousMatchStart, $lte: previousMatchEnd },
-              },
-            ],
-            //idMyUser: idMyUser
-          },
-        },
-        {
-          $project: {
-            weekOfMonth: {
-              $let: {
-                vars: {
-                  dateInPeru: {
-                    $dateToParts: {
-                      date: "$createdAt",
-                      timezone: "America/Lima",
-                    },
-                  },
-                },
-                in: {
-                  $add: [
-                    {
-                      $floor: {
-                        $divide: [{ $subtrac: ["$$dateInPeru.day", 1] }, 7],
-                      },
-                    },
-                    1,
-                  ],
-                },
-              },
-            },
-            month: {
-              $cond: [
-                {
-                  $gte: ["$createdAt", currentMatchStart],
-                },
-                "current",
-                "previous",
-              ],
-            },
-            price: 1,
-          },
-        },
-        {
-          $group: {
-            _id: { month: "$month", weekOfMonth: "$weekOfMonth" },
-            totalAmount: { $sum: "$price" },
-          },
-        },
-      ]),
-    ]);
-
-    const incomes = processMonthlyAggregation(usersAgg);
-    const expenses = processMonthlyAggregation(expensesAgg);
-
-    return res.status(200).json({ incomes: incomes, expenses: expenses });
+    const { type } = req.query;
+    const idMyUser = req.user.uid;
+    let result;
+    if (type === "yearly") {
+      result = await getComparativeYear(idMyUser);
+    } else if (type === "monthly") {
+      result = await getComparativeMonth(idMyUser);
+    } else if (type === "weekly") {
+      result = await getComparativeWeek(idMyUser);
+    } else {
+      return res.status(400).json({ message: "Invalid type" });
+    }
+    return res.status(200).json(result);
   } catch (error) {
     console.log(error);
     return res.status(500).json({ message: "Internal server error" });
   }
 }
 
-async function getComparativeWeekly(req, res) {
-  try {
-
-    const processAggregation = (aggregationResults) => {
-      const result = { current: {}, previous: {} };
-      aggregationResults.forEach((item) => {
-        const weekType = item._id.week;
-        const dayNumber = item._id.dayOfWeek;
-        result[weekType][dayNumber] = item.totalAmount;
-      });
-
-      const days = [
-        { number: "1", label: "Lunes" },
-        { number: "2", label: "Martes" },
-        { number: "3", label: "Miercoles" },
-        { number: "4", label: "Jueves" },
-        { number: "5", label: "Viernes" },
-        { number: "6", label: "Sabado" },
-        { number: "7", label: "Domingo" },
-      ];
-
-      return days.map((day) => ({
-        label: day.label,
-        val1: result.current[day.number] || 0,
-        val2: result.previous[day.number] || 0,
-      }));
-    };
-    //const idMyUser = req.user.uid;
-    const now = moment().tz("America/Lima");
-    const currentWeekStart = now.clone().startOf("isoWeek");
-    const currentWeekEnd = currentWeekStart.clone().endOf("isoWeek");
-
-    const previousWeekStart = currentWeekStart.clone().subtract(1, "week");
-    const previousWeekEnd = previousWeekStart.clone().endOf("isoWeek");
-
-    const matchStart = previousWeekStart.utc().toDate();
-    const matchEnd = currentWeekEnd.utc().toDate();
-
-    const [usersAgg, expensesAgg] = await Promise.all([
-      User.aggregate([
-        {
-          $match: {
-            createdAt: { $gte: matchStart, $lte: matchEnd },
-            //idMyUser: idMyUser
-          },
-        },
-        {
-          $project: {
-            dayOfWeek: {
-              $dateToString: {
-                format: "%u",
-                date: "$createdAt",
-                timezone: "America/Lima",
-              },
-            },
-            week: {
-              $cond: [
-                {
-                  $gte: ["$createdAt", currentWeekStart.utc().toDate()],
-                },
-                "current",
-                "previous",
-              ],
-            },
-            price: 1,
-          },
-        },
-        {
-          $group: {
-            _id: { week: "$week", dayOfWeek: "$dayOfWeek" },
-            totalAmount: { $sum: "price" },
-          },
-        },
-      ]),
-      Expenses.aggregate([
-        {
-          $match: {
-            createdAt: { $gte: matchStart, $lte: matchEnd },
-            //idMyUser: idMyUser
-          },
-        },
-        {
-          $project: {
-            dayOfWeek: {
-              $dateToString: {
-                format: "%u",
-                date: "$createdAt",
-                timezone: "America/Lima",
-              },
-            },
-            week: {
-              $cond: [
-                {
-                  $gte: ["$createdAt", currentWeekStart.utc().toDate()],
-                },
-                "current",
-                "previous",
-              ],
-            },
-            price: 1,
-          },
-        },
-        {
-          $group: {
-            _id: { week: "$week", dayOfWeek: "$dayOfWeek" },
-            totalAmount: { $sum: "price" },
-          },
-        },
-      ]),
-    ]);
-
-    const incomes = processAggregation(usersAgg);
-    const expenses = processAggregation(expensesAgg);
-    return res.status(200).json({ incomes: incomes, expenses: expenses });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: "Internal" });
-  }
-}
-
 async function getDataGraphic(req, res) {
   try {
-    //const idMyUser = req.user.uid
+    const idMyUser = req.user.uid
     const { year, month } = req.query;
     const yearNumber = parseInt(year);
     const monthNumber = parseInt(month);
+    let expenses;
+    let incomes;
+    let balance;
     if (monthNumber) {
       const { startUTC, endUTC } = getPeruUTCDates(yearNumber, monthNumber);
       const [userAggrregation, expensesAggregation] = await Promise.all([
@@ -439,7 +479,7 @@ async function getDataGraphic(req, res) {
           {
             $match: {
               createdAt: { $gte: startUTC, $lt: endUTC },
-              //idMyUser : idMyUser
+              idMyUser : idMyUser
             },
           },
           {
@@ -473,7 +513,7 @@ async function getDataGraphic(req, res) {
           {
             $match: {
               createdAt: { $gte: startUTC, $lt: endUTC },
-              //idMyUser: idMyUser
+              idMyUser: idMyUser
             },
           },
           {
@@ -522,11 +562,14 @@ async function getDataGraphic(req, res) {
         label: day,
         price: expensesMap.get(day) || 0,
       }));
+      const balanceResult = calculateBalanceStaticts(
+        usersResult,
+        expensesResult
+      );
 
-      return res.status(200).json({
-        incomes: usersResult,
-        expenses: expensesResult,
-      });
+      expenses = expensesResult;
+      incomes = usersResult;
+      balance = balanceResult;
     } else {
       const now = moment().tz("America/Lima");
       const currentYear = now.year();
@@ -546,7 +589,7 @@ async function getDataGraphic(req, res) {
           $gte: startDate.utc().toDate(),
           $lte: endDate.utc().toDate(),
         },
-        //idMyUser: idMyUser
+        idMyUser: idMyUser
       };
       const basePipeline = [
         { $match: matchFilter },
@@ -581,10 +624,7 @@ async function getDataGraphic(req, res) {
             const currentMonthNumber = index + 1;
             const monthKey = currentMonthNumber.toString().padStart(2, "0");
 
-            if (
-              targetYear == currentYear &&
-              currentMonthNumber > now.month() 
-            )
+            if (targetYear == currentYear && currentMonthNumber > now.month())
               return null;
 
             const found = data.find((item) => item._id === monthKey);
@@ -595,11 +635,22 @@ async function getDataGraphic(req, res) {
           })
           .filter((item) => item !== null);
       };
-      return res.status(200).json({
-        incomes: processResults(incomes),
-        expenses: processResults(expenses),
-      });
+      const incomesResult = processResults(incomes);
+      const expensesResult = processResults(expenses);
+      const balanceResult = calculateBalanceStaticts(
+        incomesResult,
+        expensesResult
+      );
+
+      balance = balanceResult;
+      incomes = incomesResult;
+      expenses = expensesResult;
     }
+    return res.status(200).json({
+      incomes: incomes,
+      expenses: expenses,
+      balance: balance,
+    });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Internal server error" });
@@ -608,7 +659,7 @@ async function getDataGraphic(req, res) {
 
 async function getStatistcData(req, res) {
   try {
-    //const idMyUser = req.user.uid
+    const idMyUser = req.user.uid
     const now = moment.tz("America/Lima");
 
     const startOfMonth = now.clone().startOf("month");
@@ -624,7 +675,7 @@ async function getStatistcData(req, res) {
             $gte: utcStart,
             $lte: utcEnd,
           },
-          //idMyUser: idMyUser
+          idMyUser: idMyUser
         },
       },
       {
@@ -667,9 +718,7 @@ async function getStatistcData(req, res) {
 }
 
 export {
-  getComparativeYearly,
-  getComparativeMonthly,
-  getComparativeWeekly,
   getStatistcData,
   getDataGraphic,
+  getComparativeData,
 };
