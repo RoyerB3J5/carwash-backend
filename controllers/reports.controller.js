@@ -352,7 +352,6 @@ const getComparativeWeek = async (idMyUser) => {
       val2: result.previous[day.number] || 0,
     }));
   };
-  const idMyUser = req.user.uid;
   const now = moment().tz("America/Lima");
   const currentWeekStart = now.clone().startOf("isoWeek");
   const currentWeekEnd = currentWeekStart.clone().endOf("isoWeek");
