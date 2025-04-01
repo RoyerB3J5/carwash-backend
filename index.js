@@ -44,12 +44,12 @@ app.use("/users", authMiddleware, usersRoute);
 app.use("/services", authMiddleware, servicesRoute);
 app.use("/type-expenses", authMiddleware, typeExpensesRoute);
 app.use("/expenses", authMiddleware, expensesRoute);
-
+app.use("/report", authMiddleware, reportRoute);
 //app.use("/users", usersRoute);
 //app.use('/services',servicesRoute)
 //app.use('/type-expenses', typeExpensesRoute)
 //app.use("/expenses", expensesRoute);
-app.use("/report", reportRoute);
+//app.use("/report", reportRoute);
 
 mongoose
   .connect(process.env.MONGO_URL)

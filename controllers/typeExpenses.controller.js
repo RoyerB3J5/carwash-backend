@@ -3,7 +3,7 @@ import { TypeExpenses } from "../models/typeExpenses.model.js";
 async function getTypeExpenses(req, res) {
   try {
     const idMyUser = req.user.uid;
-    const expenses = await TypeExpenses.find({ idMyUser });
+    const expenses = await TypeExpenses.find({ idMyUser },{idMyUser:0});
     return res.status(200).json(expenses);
   } catch (error) {
     console.log(error.message);
@@ -12,11 +12,9 @@ async function getTypeExpenses(req, res) {
 }
 async function deleteTypeItem(req, res) {
   const { id } = req.params;
-  const { idMyUser } = req.user.uid;
   try {
     const deleteTypeExpense = await TypeExpenses.findOneAndDelete({
       id,
-      idMyUser,
     });
     if (!deleteTypeExpense) {
       return res.status(404).json({ message: "Tipo de gasto no encontrado" });

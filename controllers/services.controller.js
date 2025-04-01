@@ -3,7 +3,7 @@ import { Service } from "../models/service.model.js";
 const getServices = async (req, res) => {
   try {
     const idMyUser = req.user.uid;
-    const services = await Service.find({ idMyUser });
+    const services = await Service.find({ idMyUser },{idMyUser:0});
     return res.status(200).json(services);
   } catch (error) {
     console.log(error.message);
@@ -14,7 +14,7 @@ const getServicesVehicle = async (req, res) => {
   try {
     const idMyUser = req.user.uid;
     const { vehicleType } = req.params;
-    const services = await Service.findOne({ vehicleType, idMyUser });
+    const services = await Service.findOne({ vehicleType, idMyUser },{idMyUser: 0});
     return res.status(200).json(services);
   } catch (error) {
     console.log(error.message);

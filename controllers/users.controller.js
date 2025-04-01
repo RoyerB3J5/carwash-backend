@@ -10,6 +10,8 @@ const getUsersDate = async (req, res) => {
         $lt: end,
       },
       idMyUser,
+    },{
+      idMyUser:0
     });
     return res.status(200).json({
       count: users.length,
@@ -28,6 +30,8 @@ const getUserUnfinished = async (req, res) => {
     return res.status(200).json({
       count: users.length,
       data: users,
+    },{
+      idMyUser: 0
     });
   } catch (error) {
     console.log(error.message);
